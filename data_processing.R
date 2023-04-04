@@ -6,6 +6,8 @@ setwd(path)
 getwd() 
 list.files()
 
+# Loading of data
+
 datafile <- "valeurs_mensuelles.csv" 
 data <- read.csv(datafile,sep=";")
 
@@ -18,9 +20,19 @@ prod <- zoo(data$values, order.by=dates)
 
 plot(prod)
 
+# Question 2
+
 diff_prod = diff(prod,1)
 
 plot(diff_prod)
+
+#calculate autocorrelation
+plot(acf(diff_prod, pl=FALSE))
+
+# Question 3
+
+#Representation before and after 
+plot(cbind(prod,diff_prod))
 
 
 
