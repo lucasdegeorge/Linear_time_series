@@ -27,12 +27,24 @@ diff_prod = diff(prod,1)
 plot(diff_prod)
 
 #calculate autocorrelation
-plot(acf(diff_prod, pl=FALSE))
+acf(diff_prod, pl=TRUE)
 
 # Question 3
 
 #Representation before and after 
-plot(cbind(prod,diff_prod))
+plot(cbind(prod,diff_prod)) 
+
+# Question 4 
+
+#calculate autocorrelation
+acf(diff_prod, pl=TRUE)
+# Interpretation : maybe MA(2) ? 
+
+#calculate partial autocorrelation
+pacf(diff_prod, pl=TRUE)
+# Interpretation : maybe AR(1), AR(4) ? 
+
+
 
 
 
