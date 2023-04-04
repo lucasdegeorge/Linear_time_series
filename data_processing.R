@@ -14,9 +14,8 @@ dates_char[1] #
 tail(dates_char,1) #
 dates <- as.yearmon(seq(from=1990, to=2023, by=1/12))
 
+prod <- zoo(data$values, order.by=dates)
 
-prod <- zoo(data[[2]])
-T <- length(prod.source)
 plot(prod)
 
 
