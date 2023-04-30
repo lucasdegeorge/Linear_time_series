@@ -1,27 +1,32 @@
 require(zoo) 
 require(tseries) 
 
-# library(readr)
-# library(tidyverse)
-library( plyr)
-# library(questionr)
+library(readr)
+library(tidyverse)
+library(plyr)
+library(questionr)
 library(corrplot)
 library(Hmisc)
-# library(lmtest)
-# library(margins)
-# library(psych)
+library(lmtest)
+library(margins)
+library(psych)
 
 path <- "C:/Users/lucas/Downloads"
 # path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
 setwd(path) 
 getwd() 
-list.files()
 
 # Loading of data
 
-datafile <- "construction_navale.csv"
-# datafile <- "valeurs_mensuelles.csv" 
-data <- read.csv(datafile,sep=";")
+datafile <- "valeurs_mensuelles.csv"
+data <- as.data.frame(read.csv(datafile,sep=";"))
+
+data <- rename.variable(data, "Indice.CVS.CJO.de.la.production.industrielle..base.100.en.2015...Construction.navale..NAF.rév..2.niveau.groupe..poste.30.1", "values" )
+data <- rename.variable(data, "Libellé", "dates")
+data <- data[,-3]
+data <- data[-1:-2,]
+donnees <- apply ( data , 2 , rev )
+
 
 dates_char <- as.character(data$dates)
 dates_char[1] #
@@ -97,10 +102,10 @@ Qtests <- function(series, k, fitdf=0) {
   } 
   pvals <- apply(matrix(1:k), 1, FUN=aux)
   return (t(pvals))
-  }
+}
 
 Qtests(arma02$residuals, 24, fitdf=5)
-# Les resultats sont bizarres là 
+# Les resultats sont bizarres l?? 
 
 # Function adj_r2 for computing the adjusted R square 
 adj_r2 <- function(model){
