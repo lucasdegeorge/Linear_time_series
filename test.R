@@ -11,14 +11,15 @@ library(lmtest)
 library(margins)
 library(psych)
 
+library(fUnitRoots)
+
 library(forecast)
 
 require(ellipse)
 require(ellipsis)
-require(car)
+# require(car)
 library(ellipse)
 
-# path <- "C:/Users/lucas/Downloads"
 path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
 setwd(path) 
 getwd() 
@@ -47,21 +48,89 @@ lag.plot(built, lags=12, layout=c(3,4), do.lines=FALSE)
 fit1 <- decompose(built)
 plot(fit1)
 
-attach(mtcars)
-par(mfrow=c(2,1))
-plot(built, xlab="Date", ylab="Shipbuilding", main = "Shipbuilding")
-monthplot(built)
-lag.plot(built, lags=12, layout=c(3,4), do.lines=FALSE)
-plot(fit1)
+# Plot ACF and PACF
+acf(built)
+pacf(built)
+
+summary(lm(built~seq(1,n)))
+
+# KPSS test
+kpss.test(built, null="Trend")
+
+# ADF test
+
+# Function Q_tests for testing th autocorrelation of residuals
+Qtests <- function(series, k, fitdf=0) {
+  aux <- function(l){
+    pval <- if (l<=fitdf) NA else Box.test(series, lag=l, type="Ljung", fitdf=fitdf)$p.value
+    return (c("lag"=l, "pval"=pval))
+  } 
+  pvals <- apply(matrix(1:k), 1, FUN=aux)
+  return (t(pvals))
+}
+
+adfTest_valid <- function(series, kmax, type) {
+  k <- 0
+  noautocorr <- 0
+  while (noautocorr == 0){
+    cat(paste0("ADF with ", k, " lags: residuals OK?"))
+    adf <- adfTest(series, lags = k, type = type)
+    pvals <- Qtests(adf@test$lm$residuals, 24, fitdf = length(adf@test$lm$coefficients))[, 2]
+    if (sum(pvals < 0.05, na.rm = TRUE) == 0) {
+      noautocorr <- 1
+      cat("OK \n")
+    } else {
+      cat("nope \n")
+    }
+    k <- k + 1
+  }
+  return(adf)
+}
+
+adf <- adfTest_valid(built, 24, "ct")
+adf
+
 
 # Question 2
 
 diff_built = diff(built,1)
-
 plot(diff_built)
 
 # calculate autocorrelation
 acf(diff_built, pl=TRUE)
+
+summary(lm(diff_built ~ seq(1, length(diff_built))))
+kpss.test(diff_built, null="Level")
+
+Qtests <- function(series, k, fitdf = 0) {
+  pvals <- apply(matrix(1:k), 1, FUN=function(l) {
+    pval <- if (l <= fitdf) NA else Box.test(series, lag = l, type = "Ljung-Box", fitdf = fitdf)$p.value
+    return(c("lag" = l, "pval" = pval))
+  })
+  return(t(pvals))
+}
+
+adfTest_valid <- function(series, kmax, type) {
+  k <- 0
+  noautocorr <- 0
+  while (noautocorr == 0) {
+    cat(paste0("ADF with ", k, " lags: residuals OK?"))
+    adf <- adfTest(series, lags = k, type = type)
+    pvals <- Qtests(adf@test$lm$residuals, 24, fitdf = length(adf@test$lm$coefficients))[, 2]
+    if (sum(pvals < 0.05, na.rm = TRUE) == 0) {
+      noautocorr <- 1
+      cat("OK \n")
+    } else {
+      cat("nope \n")
+    }
+    k <- k + 1
+  }
+  return(adf)
+}
+
+adf <- adfTest_valid(diff_built, 24, "ct")
+adf
+
 
 # Question 3
 
@@ -152,6 +221,7 @@ arima511
 # Question 7 
 
 tsdiag(arma51)
+jarque.bera.test(arima511$residuals)
 qqnorm(arma51$residuals)
 plot(density(arma51$residuals, lwd=0.5), xlim=c(-10,10), main="Density of residuals")
 mu <- mean(arma51$residuals)
@@ -165,9 +235,15 @@ lines(x, y, lwd=0.5, col="blue")
 arma51$coef
 phi_1 <- as.numeric(arma51$coef[1])
 phi_2 <- as.numeric(arma51$coef[2])
+phi_3 <- as.numeric(arma51$coef[3])
+phi_4 <- as.numeric(arma51$coef[4])
+phi_5 <- as.numeric(arma51$coef[5])
 sigma2 <- as.numeric(arma51$sigma)
 phi_1
 phi_2
+phi_3
+phi_4
+phi_5
 sigma2
 
 # Prediction 
@@ -180,15 +256,23 @@ XT2
 # Prediction for the serie built
 fore = forecast(arima511, h=5, level=95)
 par(mfrow=c(1,1))
-plot(fore, xlim=c(2020,2024), col=1, fcol=2, shaded=TRUE, xlab="Time" , ylab="Value", main="Forecast for the serie built")
+plot(fore, xlim=c(2018,2024), col=1, fcol=2, shaded=TRUE, xlab="Time" , ylab="Value", main="Forecast for the serie built")
 
+require(ellipse)
 
-arma = arima0(diff_built, order=c(0, 1, 2))
-Sigma <- matrix(c(sigma2, phi_1*sigma2, phi_1*sigma2, (phi_1)^2 * sigma2 + sigma2), ncol=2)
-inv_Sigma <- solve(Sigma)
-plot(XT1, XT2, xlim=c(-10,10), ylim=c(-10,10), xlab="Forecast for X_{T+1}", ylab =" Forecast on X_{T+2}", main ="95% bivariate confidence region")
-lines(ellipse(Sigma, centre=c(XT1,XT2)), type="l" , col="red", xlab="Xt+1", ylab="Xt+2",main="Confidence ellipse for (Xt+1,Xt+2)")
+arma <- arima0(diff_built, order = c(5, 1, 1))
+sigma2 <- arma$sigma2
+phi <- arma$coef[-1]
+
+Sigma <- matrix(c(sigma2, phi[1] * sigma2, phi[2] * sigma2, phi[3] * sigma2, phi[4] * sigma2, phi[5] * sigma2,
+                  phi[1] * sigma2, sigma2, 0, 0, 0, 0,
+                  phi[2] * sigma2, 0, sigma2, 0, 0, 0,
+                  phi[3] * sigma2, 0, 0, sigma2, 0, 0,
+                  phi[4] * sigma2, 0, 0, 0, sigma2, 0,
+                  phi[5] * sigma2, 0, 0, 0, 0, sigma2), ncol = 6)
+
+plot(XT1, XT2, xlim = c(-10, 10), ylim = c(-10, 10), xlab = "Forecast for X_{T+1}", ylab = "Forecast on X_{T+2}", main = "95% bivariate confidence region")
+points(XT1, XT2, col = "blue")
+ellipse(Sigma[1:2, 1:2], center = c(XT1, XT2), type = "l", col = "red", radius = c(1, 1))
 abline(h=XT1,v=XT2)
-
-
 
