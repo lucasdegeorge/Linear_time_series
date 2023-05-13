@@ -11,8 +11,15 @@ library(lmtest)
 library(margins)
 library(psych)
 
-path <- "C:/Users/lucas/Downloads"
-# path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
+library(forecast)
+
+require(ellipse)
+require(ellipsis)
+require(car)
+library(ellipse)
+
+# path <- "C:/Users/lucas/Downloads"
+path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
 setwd(path) 
 getwd() 
 
@@ -21,51 +28,59 @@ getwd()
 datafile <- "valeurs_mensuelles.csv"
 data <- as.data.frame(read.csv(datafile,sep=";"))
 
-data <- rename.variable(data, "Indice.CVS.CJO.de.la.production.industrielle..base.100.en.2015...Construction.navale..NAF.rév..2.niveau.groupe..poste.30.1", "values" )
-data <- rename.variable(data, "Libellé", "dates")
 data <- data[,-3]
-data <- data[-1:-2,]
-donnees <- apply ( data , 2 , rev )
+data <- apply(data, 2, rev)
 
-
-dates_char <- as.character(data$dates)
-dates_char[1] #
-tail(dates_char,1) #
-dates <- as.yearmon(seq(from=2023, to=1990, by=-1/12))
-
-prod <- zoo(data$values, order.by=dates)
-
-plot(prod)
+rownames(data) <- 1:dim(data)[1]
+built <- ts(as.numeric(data[,2]), start=1990, frequency=12)
+n <- length(built)
+plot(built, xlab="Date", ylab="Shipbuilding", main = "Shipbuilding")
+monthplot(built)
 
 ## Part I ##
 
+# Question 1 
+
+plot(built, xlab="Date", ylab="Shipbuilding", main = "Shipbuilding")
+monthplot(built)
+lag.plot(built, lags=12, layout=c(3,4), do.lines=FALSE)
+fit1 <- decompose(built)
+plot(fit1)
+
+attach(mtcars)
+par(mfrow=c(2,1))
+plot(built, xlab="Date", ylab="Shipbuilding", main = "Shipbuilding")
+monthplot(built)
+lag.plot(built, lags=12, layout=c(3,4), do.lines=FALSE)
+plot(fit1)
+
 # Question 2
 
-diff_prod = diff(prod,1)
+diff_built = diff(built,1)
 
-plot(diff_prod)
+plot(diff_built)
 
 # calculate autocorrelation
-acf(diff_prod, pl=TRUE)
+acf(diff_built, pl=TRUE)
 
 # Question 3
 
 # Representation before and after 
-plot(cbind(prod,diff_prod)) 
+plot(cbind(built,diff_built)) 
 
 ## Part II ## 
 
 # Question 4 
 
 # calculate autocorrelation
-acf(as.numeric(diff_prod), pl=TRUE)
+acf(as.numeric(diff_built), pl=TRUE)
 # Interpretation : q_max = 2
 q_max <- 2
 
 # calculate partial autocorrelation
-pacf(as.numeric(diff_prod), pl=TRUE)
+pacf(as.numeric(diff_built), pl=TRUE)
 # Interpretation : p_max = 3
-p_max <- 3
+p_max <- 5
 
 # Matrix of AICs and BICs
 mat <- matrix (NA, nrow=p_max+1, ncol=q_max+1) # empty matrix 
@@ -77,7 +92,7 @@ pqs <- expand.grid(0:p_max, 0:q_max)
 for (row in 1:dim(pqs)[1]){
   p <- pqs[row, 1] 
   q <- pqs[row, 2] 
-  estim <- try(arima(diff_prod, c(p, 0, q), include.mean = F)) # try to estimate the ARIMA
+  estim <- try(arima(diff_built, c(p, 0, q), include.mean = F)) # try to estimate the ARIMA
   AICs[p+1,q+1] <- if (class(estim)=="try-error") NA else estim$aic
   BICs[p+1,q+1] <- if (class(estim)=="try-error") NA else BIC(estim) 
 }
@@ -89,10 +104,13 @@ AICs==min(AICs)
 BICs 
 BICs==min(BICs)
 
-# Interpretation: we choose ARMA(0,2)
+# Interpretation: we choose ARMA(0,2) and ARMA(5,1)
 
-arma02 <- arima(diff_prod, c(0, 0, 2), include.mean=F)
+arma02 <- arima(diff_built, c(0, 0, 2), include.mean=F)
 arma02 # Execute to get the estimated coef ma1 and ma2
+
+arma51 <- arima(diff_built, c(5, 0, 1), include.mean=F)
+arma51 # Execute to get the estimated coef ma1 and ma2
 
 # Function Q_tests for testing th autocorrelation of residuals
 Qtests <- function(series, k, fitdf=0) {
@@ -105,69 +123,67 @@ Qtests <- function(series, k, fitdf=0) {
 }
 
 Qtests(arma02$residuals, 24, fitdf=5)
-# Les resultats sont bizarres l?? 
+# Les resultats sont bizarres ? 
+
+Qtests(arma51$residuals, 24, fitdf=5)
+# L?, ?a semble ok 
 
 # Function adj_r2 for computing the adjusted R square 
 adj_r2 <- function(model){
   ss_res <- sum(model$residuals^2) # sum of squared residuals
   p <- model$arma[1] 
   q <- model$arma[2]
-  ss_tot <- sum(diff_prod[-c(1:max(p, q))]^2) 
+  ss_tot <- sum(diff_built[-c(1:max(p, q))]^2) 
   n <- model$nobs-max(p, q) 
   adj_r2 <- 1-(ss_res/(n-p-q-1)) / (ss_tot/(n-1)) #ajusted R square
   return (adj_r2)
 }
-adj_r2(arma02)
+adj_r2(arma51)
 
 # Question 5
-arima012 <- arima(prod, c(0, 1, 2), include.mean=F)
+arima012 <- arima(built, c(0, 1, 2), include.mean=F)
 arima012
+
+arima511 <- arima(built, c(5, 1, 1), include.mean=F)
+arima511
 
 ## Part III ##
 
 # Question 7 
 
-tsdiag(arma02)
-qqnorm(arma02$residuals)
-plot(density(arma02$residuals, lwd=0.5), xlim=c(-10,10), main="Density of residuals")
-mu <- mean(arma02$residuals)
-sigma <- sd(arma02$residuals)
+tsdiag(arma51)
+qqnorm(arma51$residuals)
+plot(density(arma51$residuals, lwd=0.5), xlim=c(-10,10), main="Density of residuals")
+mu <- mean(arma51$residuals)
+sigma <- sd(arma51$residuals)
 x <- seq(-10,10)
 y <- dnorm(x,mu,sigma)
 lines(x, y, lwd=0.5, col="blue")
 
 # Question 8 
 
-arma02$coef
-phi_1 <- as.numeric(arma02$coef[1])
-phi_2 <- as.numeric(arma02$coef[2])
-sigma2 <- as.numeric(arma02$sigma )
+arma51$coef
+phi_1 <- as.numeric(arma51$coef[1])
+phi_2 <- as.numeric(arma51$coef[2])
+sigma2 <- as.numeric(arma51$sigma)
 phi_1
 phi_2
 sigma2
 
 # Prediction 
 
-XT1 = predict(arma02, n.ahead=2)$pred[1]
-XT2 = predict(arma02, n.ahead=2)$pred[2]
+XT1 = predict(arma51, n.ahead=2)$pred[1]
+XT2 = predict(arma51, n.ahead=2)$pred[2]
 XT1
 XT2
 
-# Prediction for the serie prod
-library(forecast)
-arima012 <- arima(diff_prod, c(0, 1, 2), include.mean=F)
-arima012
-fore = forecast(arima012, h=5, level=95)
+# Prediction for the serie built
+fore = forecast(arima511, h=5, level=95)
 par(mfrow=c(1,1))
-plot(fore, xlim=c(2020, 2024), col=1, fcol=2, shaded=TRUE, xlab="Time" , ylab="Value", main="Forecast for the serie prod")
+plot(fore, xlim=c(2020,2024), col=1, fcol=2, shaded=TRUE, xlab="Time" , ylab="Value", main="Forecast for the serie built")
 
 
-require(ellipse)
-require(ellipsis)
-require(car)
-library(ellipse)
-
-arma = arima0(diff_prod, order=c(0, 1, 2))
+arma = arima0(diff_built, order=c(0, 1, 2))
 Sigma <- matrix(c(sigma2, phi_1*sigma2, phi_1*sigma2, (phi_1)^2 * sigma2 + sigma2), ncol=2)
 inv_Sigma <- solve(Sigma)
 plot(XT1, XT2, xlim=c(-10,10), ylim=c(-10,10), xlab="Forecast for X_{T+1}", ylab =" Forecast on X_{T+2}", main ="95% bivariate confidence region")
