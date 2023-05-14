@@ -20,13 +20,13 @@ require(ellipsis)
 # require(car)
 library(ellipse)
 
-path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
+path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series"
 setwd(path) 
 getwd() 
 
 # Loading of data
 
-datafile <- "valeurs_mensuelles.csv"
+datafile <- "values.csv"
 data <- as.data.frame(read.csv(datafile,sep=";"))
 
 data <- data[,-3]
