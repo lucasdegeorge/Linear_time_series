@@ -17,10 +17,10 @@ library(forecast)
 
 require(ellipse)
 require(ellipsis)
-# require(car)
+require(car)
 library(ellipse)
 
-path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series"
+path <- "C:/Users/lucas/Documents/GitHub/Linear_time_series_electricity"
 setwd(path) 
 getwd() 
 
@@ -200,6 +200,12 @@ arima012
 arima511 <- arima(built, c(5, 1, 1), include.mean=F)
 arima511
 
+plot(built, xlab="Date" , ylab="Indice", main = "Observed vs. Predicted" )
+lines(fitted(arima511), col = "red")
+
+plot(diff_built, xlab="Date", ylab="Indice", main="Observed vs. Predicted" )
+lines(fitted(arma51), col = "red")
+
 ## Part III ##
 
 # Question 7 
@@ -273,7 +279,8 @@ Sigma <- matrix(c(sigma2, phi[1] * sigma2, phi[2] * sigma2, phi[3] * sigma2, phi
                   phi[5] * sigma2, 0, 0, 0, 0, sigma2), ncol = 6)
 
 plot(XT1, XT2, xlim = c(-10, 10), ylim = c(-10, 10), xlab = "Forecast for X_{T+1}", ylab = "Forecast on X_{T+2}", main = "95% bivariate confidence region")
-points(XT1, XT2, col = "blue")
 ellipse(Sigma[1:2, 1:2], center = c(XT1, XT2), type = "l", col = "red", radius = c(1, 1))
-abline(h=XT1,v=XT2)
+points(XT1, XT2, col = "blue")
+abline(h=XT2,v=XT1, col="blue")
+abline(h=0,v=00)
 
